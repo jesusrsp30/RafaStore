@@ -28,11 +28,11 @@ export default function Home() {
   }, []);
 
   async function insertarDatosPrueba() {
-    if (!supabase) return;
     setLoadingDemo(true);
     try {
+      const client = createClient();
       // Crear cliente de prueba
-      const { data: cliente, error: clienteError } = await supabase
+      const { data: cliente, error: clienteError } = await client
         .from('clientes')
         .insert([{ nombre: 'María García', whatsapp: '5215512345678' }])
         .select()
@@ -68,7 +68,7 @@ export default function Home() {
         }
       ];
 
-      const { error: pedidosError } = await supabase.from('pedidos').insert(pedidos);
+      const { error: pedidosError } = await client.from('pedidos').insert(pedidos);
       if (pedidosError) throw pedidosError;
 
       alert('Datos de prueba insertados correctamente. Ve a Pedidos para verlos.');
@@ -143,7 +143,7 @@ export default function Home() {
             {/* Botón para insertar datos de prueba */}
             <button
               onClick={insertarDatosPrueba}
-              disabled={loadingDemo || !supabase}
+              disabled={loadingDemo}
               className="w-full py-3 px-4 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loadingDemo ? 'Insertando...' : 'Insertar Datos de Prueba'}
