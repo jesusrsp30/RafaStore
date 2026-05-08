@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ListaPedidos() {
@@ -41,7 +41,7 @@ export default function ListaPedidos() {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('*, clientes(nombre)')
+        .select('*, clientes(nombre, whatsapp)')
         .order('creado_at', { ascending: false });
 
       if (error) throw error;
@@ -51,6 +51,33 @@ export default function ListaPedidos() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function sendWhatsAppMessage(pedido: any, messageType: 'arrived' | 'ready' | 'custom') {
+    const whatsapp = pedido.clientes?.whatsapp;
+    if (!whatsapp) {
+      alert('Este cliente no tiene WhatsApp registrado');
+      return;
+    }
+    
+    const cleanNumber = whatsapp.replace(/[^0-9]/g, '');
+    const saldoPendiente = (Number(pedido.precio_cliente) - Number(pedido.anticipo)).toFixed(2);
+    
+    let message = '';
+    switch (messageType) {
+      case 'arrived':
+        message = `Hola ${pedido.clientes?.nombre}! Tu pedido "${pedido.producto}" ya llego. El saldo pendiente es de $${saldoPendiente}. Cuando gustes puedes pasar a recogerlo.`;
+        break;
+      case 'ready':
+        message = `Hola ${pedido.clientes?.nombre}! Tu pedido "${pedido.producto}" esta listo para entrega. Total a pagar: $${saldoPendiente}`;
+        break;
+      case 'custom':
+        message = `Hola ${pedido.clientes?.nombre}! `;
+        break;
+    }
+    
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${cleanNumber}?text=${encodedMessage}`, '_blank');
   }
 
   if (loading) {
@@ -116,6 +143,25 @@ export default function ListaPedidos() {
                 <div className="text-[10px] text-red-500 font-bold">
                   Debe: ${(Number(pedido.precio_cliente) - Number(pedido.anticipo)).toFixed(2)}
                 </div>
+                
+                {pedido.clientes?.whatsapp && (
+                  <div className="flex items-center gap-1 mt-2 justify-end">
+                    <button
+                      onClick={() => sendWhatsAppMessage(pedido, 'arrived')}
+                      title="Notificar: Pedido llegó"
+                      className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => sendWhatsAppMessage(pedido, 'ready')}
+                      title="Notificar: Listo para entrega"
+                      className="p-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))
