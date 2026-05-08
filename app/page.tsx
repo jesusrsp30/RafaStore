@@ -17,8 +17,13 @@ export default function Home() {
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setSupabase(createClient());
+    if (typeof window !== 'undefined') {
+      try {
+        const client = createClient();
+        setSupabase(client);
+      } catch (e) {
+        console.log('[v0] Supabase not configured:', e);
+      }
     }
   }, []);
 
