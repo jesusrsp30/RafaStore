@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ListaPedidos() {
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [envioReal, setEnvioReal] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -51,6 +53,30 @@ export default function ListaPedidos() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function guardarEnvioReal(pedidoId: string) {
+    if (!supabase || !envioReal) return;
+    
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ costo_envio_real: parseFloat(envioReal) })
+        .eq('id', pedidoId);
+      
+      if (error) throw error;
+      
+      setEditingId(null);
+      setEnvioReal('');
+      fetchPedidos();
+    } catch (error) {
+      console.error('Error actualizando envío real:', error);
+    }
+  }
+
+  function startEditing(pedido: any) {
+    setEditingId(pedido.id);
+    setEnvioReal(pedido.costo_envio_real?.toString() || '');
   }
 
   function sendWhatsAppMessage(pedido: any, messageType: 'arrived' | 'ready' | 'custom') {
@@ -142,6 +168,59 @@ export default function ListaPedidos() {
                 <div className="font-black text-slate-900">${Number(pedido.precio_cliente).toFixed(2)}</div>
                 <div className="text-[10px] text-red-500 font-bold">
                   Debe: ${(Number(pedido.precio_cliente) - Number(pedido.anticipo)).toFixed(2)}
+                </div>
+                
+                {/* Información de envío */}
+                <div className="mt-2 text-[10px] space-y-0.5">
+                  <div className="text-slate-500">
+                    Envío cobrado: <span className="font-bold text-slate-700">${Number(pedido.costo_envio_estimado).toFixed(2)}</span>
+                  </div>
+                  
+                  {editingId === pedido.id ? (
+                    <div className="flex items-center gap-1 justify-end mt-1">
+                      <div className="relative">
+                        <DollarSign className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={envioReal}
+                          onChange={(e) => setEnvioReal(e.target.value)}
+                          placeholder="Real"
+                          className="w-16 h-6 pl-5 pr-1 text-xs rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary outline-none"
+                          autoFocus
+                        />
+                      </div>
+                      <button
+                        onClick={() => guardarEnvioReal(pedido.id)}
+                        className="p-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setEditingId(null); setEnvioReal(''); }}
+                        className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 justify-end">
+                      {pedido.costo_envio_real !== null ? (
+                        <span className="text-green-600">
+                          Envío real: <span className="font-bold">${Number(pedido.costo_envio_real).toFixed(2)}</span>
+                        </span>
+                      ) : (
+                        <span className="text-amber-600">Envío real: pendiente</span>
+                      )}
+                      <button
+                        onClick={() => startEditing(pedido)}
+                        title="Agregar envío real"
+                        className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {pedido.clientes?.whatsapp && (

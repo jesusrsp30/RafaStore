@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS pedidos (
     categoria TEXT NOT NULL,
     precio_cliente DECIMAL(10,2) NOT NULL DEFAULT 0,
     precio_costo DECIMAL(10,2) NOT NULL DEFAULT 0,
-    costo_envio_estimado DECIMAL(10,2) NOT NULL DEFAULT 0,
+    costo_envio_estimado DECIMAL(10,2) NOT NULL DEFAULT 0, -- Lo que cobras al cliente
+    costo_envio_real DECIMAL(10,2) DEFAULT NULL, -- Lo que realmente pagas (se llena cuando llega)
     anticipo DECIMAL(10,2) NOT NULL DEFAULT 0,
     estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente, pagado, parcial
     estado_pedido TEXT NOT NULL DEFAULT 'pendiente', -- pendiente, en_orden, entregado

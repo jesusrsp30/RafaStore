@@ -8,6 +8,7 @@ interface PedidoStats {
   precio_cliente: number | null;
   precio_costo: number | null;
   costo_envio_estimado: number | null;
+  costo_envio_real: number | null;
   anticipo: number | null;
   estado_pedido: string | null;
 }
@@ -60,19 +61,26 @@ export default function DashboardStats() {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('precio_cliente, precio_costo, costo_envio_estimado, anticipo, estado_pedido');
+        .select('precio_cliente, precio_costo, costo_envio_estimado, costo_envio_real, anticipo, estado_pedido');
 
       if (error) throw error;
 
       const results = data.reduce((acc: StatsAccumulator, p: PedidoStats) => {
         const precio = Number(p.precio_cliente);
         const costo = Number(p.precio_costo);
-        const envio = Number(p.costo_envio_estimado);
+        const envioCobrado = Number(p.costo_envio_estimado); // Lo que cobras al cliente
+        const envioReal = p.costo_envio_real !== null ? Number(p.costo_envio_real) : null;
         const ant = Number(p.anticipo);
         
-        // Ganancia (solo de pedidos completados o ya pagados?) 
-        // Por ahora sumamos todas las ganancias estimadas de lo que no ha sido entregado
-        acc.gananciaTotal += (precio - costo - envio);
+        // Ganancia: Si ya tenemos envío real, calculamos ganancia real
+        // Si no, usamos el estimado (asumiendo que cobrarás lo mismo que pagarás)
+        if (envioReal !== null) {
+          // Ganancia real = (Precio cliente - Costo producto) + (Envío cobrado - Envío real)
+          acc.gananciaTotal += (precio - costo) + (envioCobrado - envioReal);
+        } else {
+          // Ganancia estimada = Precio cliente - Costo producto (el envío se asume neutro)
+          acc.gananciaTotal += (precio - costo);
+        }
         
         // Pedidos activos (no entregados)
         if (p.estado_pedido !== 'entregado') {

@@ -12,6 +12,19 @@ export function estimarCostoEnvio(categoria: Categoria, tienda: Tienda): number 
   return ESTIMACIONES_ENVIO[categoria] || 0;
 }
 
+// Ganancia estimada: usa el envío estimado (antes de saber el real)
+export function calcularGananciaEstimada(precioCliente: number, precioCosto: number, envioEstimado: number): number {
+  return precioCliente - precioCosto - envioEstimado;
+}
+
+// Ganancia real: usa el envío real cuando ya se conoce
+// La ganancia incluye lo que cobraste de envío al cliente menos lo que realmente pagaste
+export function calcularGananciaReal(precioCliente: number, precioCosto: number, envioCobrado: number, envioReal: number): number {
+  // Ganancia = (Precio al cliente - Costo del producto) + (Envío cobrado - Envío real)
+  return (precioCliente - precioCosto) + (envioCobrado - envioReal);
+}
+
+// Mantener compatibilidad con código existente
 export function calcularGananciaNeta(precioCliente: number, precioCosto: number, costoEnvio: number): number {
   return precioCliente - precioCosto - costoEnvio;
 }
