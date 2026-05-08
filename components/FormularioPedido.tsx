@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UserPlus, Calculator, Wallet, Link as LinkIcon, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Plus, UserPlus, Calculator, Wallet, Link as LinkIcon, Image as ImageIcon, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Categoria, Tienda, estimarCostoEnvio, calcularGananciaNeta, calcularSaldoPendiente } from '@/lib/shipping';
+import { createClient } from '@/utils/supabase/client';
 
 export default function FormularioPedido() {
+  const supabase = createClient();
+  
+  // Form states
+  const [producto, setProducto] = useState('');
+  const [nombreCliente, setNombreCliente] = useState('');
   const [categoria, setCategoria] = useState<Categoria>('Ropa Ligera');
   const [tienda, setTienda] = useState<Tienda>('Shein');
   const [precioCliente, setPrecioCliente] = useState<number>(0);
@@ -12,6 +18,11 @@ export default function FormularioPedido() {
   const [envio, setEnvio] = useState<number>(2.50);
   const [anticipo, setAnticipo] = useState<number>(0);
   const [link, setLink] = useState('');
+  
+  // UI states
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [ganancia, setGanancia] = useState<number>(0);
   const [saldo, setSaldo] = useState<number>(0);
@@ -25,29 +36,123 @@ export default function FormularioPedido() {
     setSaldo(calcularSaldoPendiente(precioCliente, anticipo));
   }, [precioCliente, precioReal, envio, anticipo]);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      // 1. Buscar o crear cliente
+      let clienteId;
+      const { data: clienteExistente, error: errorBusqueda } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('nombre', nombreCliente.trim())
+        .single();
+
+      if (errorBusqueda && errorBusqueda.code !== 'PGRST116') {
+        throw errorBusqueda;
+      }
+
+      if (clienteExistente) {
+        clienteId = clienteExistente.id;
+      } else {
+        const { data: nuevoCliente, error: errorCreacion } = await supabase
+          .from('clientes')
+          .insert([{ nombre: nombreCliente.trim() }])
+          .select()
+          .single();
+        
+        if (errorCreacion) throw errorCreacion;
+        clienteId = nuevoCliente.id;
+      }
+
+      // 2. Guardar el pedido
+      const { error: errorPedido } = await supabase
+        .from('pedidos')
+        .insert([{
+          cliente_id: clienteId,
+          producto: producto,
+          link_producto: link,
+          tienda: tienda,
+          categoria: categoria,
+          precio_cliente: precioCliente,
+          precio_costo: precioReal,
+          costo_envio_estimado: envio,
+          anticipo: anticipo,
+          estado_pago: anticipo >= precioCliente ? 'pagado' : (anticipo > 0 ? 'parcial' : 'pendiente'),
+          estado_pedido: 'pendiente'
+        }]);
+
+      if (errorPedido) throw errorPedido;
+
+      setSuccess(true);
+      // Reset form
+      setProducto('');
+      setNombreCliente('');
+      setPrecioCliente(0);
+      setPrecioReal(0);
+      setAnticipo(0);
+      setLink('');
+      
+      setTimeout(() => setSuccess(false), 3000);
+
+    } catch (err: any) {
+      console.error('Error guardando pedido:', err);
+      setError(err.message || 'Error al guardar el pedido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 glass-card p-6 rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <form onSubmit={handleSubmit} className="space-y-6 glass-card p-6 rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-xl font-bold text-slate-800">Nuevo Pedido</h2>
         </div>
-        <button type="button" className="group flex items-center gap-2 text-sm font-semibold text-primary bg-primary/5 px-4 py-2 rounded-full hover:bg-primary/10 transition-all">
-          <UserPlus className="h-4 w-4" />
-          <span>Nuevo Cliente</span>
-        </button>
       </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">
+          ⚠️ {error}
+        </div>
+      )}
 
       <div className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Nombre del Cliente</label>
+            <div className="relative">
+              <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                required
+                value={nombreCliente}
+                onChange={(e) => setNombreCliente(e.target.value)}
+                placeholder="Ej: Juan Pérez"
+                className="w-full h-12 pl-11 pr-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Producto</label>
             <input 
               type="text" 
+              required
+              value={producto}
+              onChange={(e) => setProducto(e.target.value)}
               placeholder="Ej: Tenis Nike Air Max"
               className="w-full h-12 px-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Link del Artículo</label>
             <div className="relative">
@@ -61,43 +166,44 @@ export default function FormularioPedido() {
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Tienda</label>
+              <select 
+                value={tienda}
+                onChange={(e) => setTienda(e.target.value as Tienda)}
+                className="w-full h-12 px-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
+              >
+                <option value="Shein">Shein</option>
+                <option value="Amazon">Amazon</option>
+                <option value="Adidas">Adidas</option>
+                <option value="Otra">Otra</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Categoría</label>
+              <select 
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value as Categoria)}
+                className="w-full h-12 px-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
+              >
+                <option value="Ropa Ligera">Ropa Ligera</option>
+                <option value="Calzado">Calzado</option>
+                <option value="Accesorios">Accesorios</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Tienda</label>
-            <select 
-              value={tienda}
-              onChange={(e) => setTienda(e.target.value as Tienda)}
-              className="w-full h-12 px-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
-            >
-              <option value="Shein">Shein</option>
-              <option value="Amazon">Amazon</option>
-              <option value="Adidas">Adidas</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Categoría</label>
-            <select 
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value as Categoria)}
-              className="w-full h-12 px-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
-            >
-              <option value="Ropa Ligera">Ropa Ligera</option>
-              <option value="Calzado">Calzado</option>
-              <option value="Accesorios">Accesorios</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Precio Cliente</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
               <input 
                 type="number" 
+                step="0.01"
                 value={precioCliente || ''}
                 onChange={(e) => setPrecioCliente(Number(e.target.value))}
                 className="w-full h-12 pl-8 pr-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
@@ -110,21 +216,20 @@ export default function FormularioPedido() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
               <input 
                 type="number" 
+                step="0.01"
                 value={precioReal || ''}
                 onChange={(e) => setPrecioReal(Number(e.target.value))}
                 className="w-full h-12 pl-8 pr-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
               />
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Envío</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
               <input 
                 type="number" 
+                step="0.01"
                 value={envio || ''}
                 onChange={(e) => setEnvio(Number(e.target.value))}
                 className="w-full h-12 pl-8 pr-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none"
@@ -137,19 +242,12 @@ export default function FormularioPedido() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
               <input 
                 type="number" 
+                step="0.01"
                 value={anticipo || ''}
                 onChange={(e) => setAnticipo(Number(e.target.value))}
                 className="w-full h-12 pl-8 pr-4 rounded-2xl border-0 bg-slate-50 ring-1 ring-slate-200 focus:ring-2 focus:ring-primary transition-all outline-none font-bold text-primary"
               />
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Foto del Producto</label>
-          <div className="w-full h-24 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
-            <ImageIcon className="h-6 w-6 mb-1" />
-            <span className="text-xs font-medium">Subir o arrastrar imagen</span>
           </div>
         </div>
       </div>
@@ -175,10 +273,29 @@ export default function FormularioPedido() {
         </div>
       </div>
 
-      <button className="w-full h-14 bg-gradient-to-r from-primary to-accent text-white rounded-2xl font-black text-lg shadow-xl shadow-pink-200 hover:shadow-pink-300 transform transition-all active:scale-95 flex items-center justify-center gap-2">
-        <Plus className="h-6 w-6 stroke-[3]" />
-        GUARDAR PEDIDO
+      <button 
+        type="submit"
+        disabled={loading || !nombreCliente || !producto}
+        className={`w-full h-14 rounded-2xl font-black text-lg shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-2 
+          ${success 
+            ? 'bg-green-500 text-white shadow-green-200' 
+            : 'bg-gradient-to-r from-primary to-accent text-white shadow-pink-200 hover:shadow-pink-300'
+          } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      >
+        {loading ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : success ? (
+          <>
+            <CheckCircle2 className="h-6 w-6" />
+            ¡GUARDADO!
+          </>
+        ) : (
+          <>
+            <Plus className="h-6 w-6 stroke-[3]" />
+            GUARDAR PEDIDO
+          </>
+        )}
       </button>
-    </div>
+    </form>
   );
 }

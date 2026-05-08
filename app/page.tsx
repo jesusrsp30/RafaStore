@@ -15,7 +15,7 @@ export default function Home() {
             <h1 className="text-2xl font-black text-foreground">Hola, Rafela 👋</h1>
             <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">PLAN PREMIUM</span>
           </div>
-          <DashboardStats gananciaTotal={342.50} pedidosActivos={12} />
+          <DashboardStats />
         </section>
 
         <section className="space-y-4">
