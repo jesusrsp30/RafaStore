@@ -1,5 +1,7 @@
 import Header from '@/components/Header';
 import DashboardStats from '@/components/DashboardStats';
+
+export const dynamic = 'force-dynamic';
 import FormularioPedido from '@/components/FormularioPedido';
 import ListaPedidos from '@/components/ListaPedidos';
 import VistaConsolidacion from '@/components/VistaConsolidacion';
