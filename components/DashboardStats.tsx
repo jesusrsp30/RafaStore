@@ -4,6 +4,20 @@ import { useEffect, useState } from 'react';
 import { DollarSign, Package, TrendingUp, Wallet, ArrowDownCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
+interface PedidoStats {
+  precio_cliente: number | null;
+  precio_costo: number | null;
+  costo_envio_estimado: number | null;
+  anticipo: number | null;
+  estado_pedido: string | null;
+}
+
+interface StatsAccumulator {
+  gananciaTotal: number;
+  pedidosActivos: number;
+  saldoPorCobrar: number;
+}
+
 export default function DashboardStats() {
   const [stats, setStats] = useState({
     gananciaTotal: 0,
@@ -38,7 +52,7 @@ export default function DashboardStats() {
 
       if (error) throw error;
 
-      const results = data.reduce((acc, p) => {
+      const results = data.reduce((acc: StatsAccumulator, p: PedidoStats) => {
         const precio = Number(p.precio_cliente);
         const costo = Number(p.precio_costo);
         const envio = Number(p.costo_envio_estimado);
