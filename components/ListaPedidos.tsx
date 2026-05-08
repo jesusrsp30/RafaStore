@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ListaPedidos() {
   const [pedidos, setPedidos] = useState<any[]>([]);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Package, Truck, Calendar, Tag, Layers, Check, Loader2 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export default function VistaConsolidacion() {
   const [pedidos, setPedidos] = useState<any[]>([]);

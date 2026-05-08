@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { DollarSign, Package, TrendingUp, Wallet, ArrowDownCircle, Loader2 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 interface PedidoStats {
   precio_cliente: number | null;

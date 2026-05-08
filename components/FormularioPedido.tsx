@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, UserPlus, Calculator, Wallet, Link as LinkIcon, Image as ImageIcon, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Categoria, Tienda, estimarCostoEnvio, calcularGananciaNeta, calcularSaldoPendiente } from '@/lib/shipping';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export default function FormularioPedido() {
   const supabase = createClient();
