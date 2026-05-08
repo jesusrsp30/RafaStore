@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag, Plus, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ListaPedidos() {
@@ -11,6 +11,14 @@ export default function ListaPedidos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [envioReal, setEnvioReal] = useState<string>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pedidoItems, setPedidoItems] = useState<{[key: string]: any[]}>({});
+  const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
+  const [newItem, setNewItem] = useState({
+    producto: '',
+    tienda: '',
+    precio_cliente: '',
+    precio_costo: ''
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -44,11 +52,18 @@ export default function ListaPedidos() {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('*, clientes(nombre, whatsapp)')
+        .select('*, clientes(nombre, whatsapp), pedido_items(*)')
         .order('creado_at', { ascending: false });
 
       if (error) throw error;
       setPedidos(data || []);
+      
+      // Organizar items por pedido
+      const itemsMap: {[key: string]: any[]} = {};
+      (data || []).forEach((pedido: any) => {
+        itemsMap[pedido.id] = pedido.pedido_items || [];
+      });
+      setPedidoItems(itemsMap);
     } catch (error) {
       console.error('Error fetching pedidos:', error);
     } finally {
@@ -78,6 +93,74 @@ export default function ListaPedidos() {
   function startEditing(pedido: any) {
     setEditingId(pedido.id);
     setEnvioReal(pedido.costo_envio_real?.toString() || '');
+  }
+
+  async function agregarItem(pedidoId: string) {
+    if (!supabase || !newItem.producto) return;
+    
+    try {
+      const { error } = await supabase
+        .from('pedido_items')
+        .insert({
+          pedido_id: pedidoId,
+          producto: newItem.producto,
+          tienda: newItem.tienda || null,
+          precio_cliente: parseFloat(newItem.precio_cliente) || 0,
+          precio_costo: parseFloat(newItem.precio_costo) || 0
+        });
+      
+      if (error) throw error;
+      
+      // Actualizar totales del pedido
+      const items = [...(pedidoItems[pedidoId] || []), {
+        precio_cliente: parseFloat(newItem.precio_cliente) || 0,
+        precio_costo: parseFloat(newItem.precio_costo) || 0
+      }];
+      const totalCliente = items.reduce((sum, item) => sum + Number(item.precio_cliente), 0);
+      const totalCosto = items.reduce((sum, item) => sum + Number(item.precio_costo), 0);
+      
+      const pedido = pedidos.find(p => p.id === pedidoId);
+      await supabase
+        .from('pedidos')
+        .update({
+          precio_cliente: Number(pedido?.precio_cliente || 0) + (parseFloat(newItem.precio_cliente) || 0),
+          precio_costo: Number(pedido?.precio_costo || 0) + (parseFloat(newItem.precio_costo) || 0)
+        })
+        .eq('id', pedidoId);
+      
+      setAddingItemTo(null);
+      setNewItem({ producto: '', tienda: '', precio_cliente: '', precio_costo: '' });
+      fetchPedidos();
+    } catch (error) {
+      console.error('Error agregando item:', error);
+    }
+  }
+
+  async function eliminarItem(itemId: string, pedidoId: string, item: any) {
+    if (!supabase) return;
+    
+    try {
+      const { error } = await supabase
+        .from('pedido_items')
+        .delete()
+        .eq('id', itemId);
+      
+      if (error) throw error;
+      
+      // Actualizar totales del pedido
+      const pedido = pedidos.find(p => p.id === pedidoId);
+      await supabase
+        .from('pedidos')
+        .update({
+          precio_cliente: Math.max(0, Number(pedido?.precio_cliente || 0) - Number(item.precio_cliente)),
+          precio_costo: Math.max(0, Number(pedido?.precio_costo || 0) - Number(item.precio_costo))
+        })
+        .eq('id', pedidoId);
+      
+      fetchPedidos();
+    } catch (error) {
+      console.error('Error eliminando item:', error);
+    }
   }
 
   function sendWhatsAppMessage(pedido: any, messageType: 'arrived' | 'ready' | 'custom') {
@@ -196,38 +279,148 @@ export default function ListaPedidos() {
                 {/* Detalle expandido */}
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-slate-100 bg-slate-50/50">
-                    <div className="grid grid-cols-2 gap-4 py-4">
-                      {/* Columna izquierda - Info del producto */}
+                    {/* Items del pedido */}
+                    <div className="py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+                          <Package className="h-4 w-4" /> Artículos del Pedido ({(pedidoItems[pedido.id]?.length || 0) + (pedido.producto ? 1 : 0)})
+                        </h5>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAddingItemTo(pedido.id); }}
+                          className="px-2 py-1 rounded-lg bg-primary text-white text-xs font-bold flex items-center gap-1 hover:bg-primary/90"
+                        >
+                          <Plus className="h-3 w-3" /> Agregar
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {/* Producto principal */}
+                        {pedido.producto && (
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              {pedido.imagen_url ? (
+                                <img src={pedido.imagen_url} alt={pedido.producto} className="object-cover h-full w-full rounded-lg" />
+                              ) : (
+                                <ImageIcon className="h-4 w-4 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 text-sm truncate">{pedido.producto}</p>
+                              <p className="text-[10px] text-slate-500">{pedido.tienda} - {pedido.categoria}</p>
+                            </div>
+                            <div className="text-right text-xs">
+                              <p className="font-bold text-slate-800">${Number(pedido.precio_costo).toFixed(2)}</p>
+                              <p className="text-green-600">${Number(pedido.precio_cliente).toFixed(2)}</p>
+                            </div>
+                            {pedido.link_producto && (
+                              <a href={pedido.link_producto} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Items adicionales */}
+                        {(pedidoItems[pedido.id] || []).map((item: any) => (
+                          <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              {item.imagen_url ? (
+                                <img src={item.imagen_url} alt={item.producto} className="object-cover h-full w-full rounded-lg" />
+                              ) : (
+                                <ImageIcon className="h-4 w-4 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 text-sm truncate">{item.producto}</p>
+                              <p className="text-[10px] text-slate-500">{item.tienda || 'Sin tienda'} {item.cantidad > 1 && `x${item.cantidad}`}</p>
+                            </div>
+                            <div className="text-right text-xs">
+                              <p className="font-bold text-slate-800">${Number(item.precio_costo).toFixed(2)}</p>
+                              <p className="text-green-600">${Number(item.precio_cliente).toFixed(2)}</p>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); eliminarItem(item.id, pedido.id, item); }}
+                              className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        
+                        {/* Formulario para agregar item */}
+                        {addingItemTo === pedido.id && (
+                          <div className="bg-white p-3 rounded-xl border-2 border-dashed border-primary/30 space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Nombre del producto"
+                              value={newItem.producto}
+                              onChange={(e) => setNewItem({...newItem, producto: e.target.value})}
+                              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="grid grid-cols-3 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Tienda"
+                                value={newItem.tienda}
+                                onChange={(e) => setNewItem({...newItem, tienda: e.target.value})}
+                                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <input
+                                type="number"
+                                placeholder="Costo"
+                                value={newItem.precio_costo}
+                                onChange={(e) => setNewItem({...newItem, precio_costo: e.target.value})}
+                                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <input
+                                type="number"
+                                placeholder="Precio cliente"
+                                value={newItem.precio_cliente}
+                                onChange={(e) => setNewItem({...newItem, precio_cliente: e.target.value})}
+                                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); agregarItem(pedido.id); }}
+                                className="flex-1 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setAddingItemTo(null); setNewItem({ producto: '', tienda: '', precio_cliente: '', precio_costo: '' }); }}
+                                className="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-bold hover:bg-slate-200"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 py-4 border-t border-slate-200">
+                      {/* Columna izquierda - Info adicional */}
                       <div className="space-y-3">
                         <h5 className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                          <Package className="h-4 w-4" /> Detalles del Producto
+                          <Store className="h-4 w-4" /> Información de Envío
                         </h5>
                         
                         <div className="space-y-2 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Producto:</span>
-                            <span className="font-medium text-slate-800 text-right max-w-[60%]">{pedido.producto}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Tienda:</span>
-                            <span className="font-medium text-slate-800">{pedido.tienda || '-'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Categoría:</span>
-                            <span className="font-medium text-slate-800">{pedido.categoria || '-'}</span>
-                          </div>
-                          {pedido.link_producto && (
-                            <div className="flex justify-between items-center">
-                              <span className="text-slate-500">Link:</span>
-                              <a href={pedido.link_producto} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                                Ver producto <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </div>
-                          )}
                           {pedido.tracking && (
                             <div className="flex justify-between">
                               <span className="text-slate-500">Tracking:</span>
                               <span className="font-medium text-slate-800">{pedido.tracking}</span>
+                            </div>
+                          )}
+                          {pedido.notas && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Notas:</span>
+                              <span className="font-medium text-slate-800 text-right max-w-[60%]">{pedido.notas}</span>
                             </div>
                           )}
                         </div>
