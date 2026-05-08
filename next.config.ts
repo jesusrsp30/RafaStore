@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Force env reload
+  experimental: {
+    // Enabled by default in Next.js 16
+  },
 };
 
 export default nextConfig;
