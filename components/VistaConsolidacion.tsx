@@ -15,11 +15,22 @@ export default function VistaConsolidacion() {
   const [tracking, setTracking] = useState('');
   const [tienda, setTienda] = useState('');
 
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    fetchPendingOrders();
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const client = createClient();
+      setSupabase(client);
+    } else {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (supabase) {
+      fetchPendingOrders();
+    }
+  }, [supabase]);
 
   async function fetchPendingOrders() {
     if (!supabase) return;

@@ -7,9 +7,20 @@ import { createClient } from '@/lib/supabase/client';
 export default function ListaPedidos() {
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const client = createClient();
+      setSupabase(client);
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    
     fetchPedidos();
     
     // Suscribirse a cambios en tiempo real
@@ -23,7 +34,7 @@ export default function ListaPedidos() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [supabase]);
 
   async function fetchPedidos() {
     if (!supabase) return;

@@ -6,7 +6,14 @@ import { Categoria, Tienda, estimarCostoEnvio, calcularGananciaNeta, calcularSal
 import { createClient } from '@/lib/supabase/client';
 
 export default function FormularioPedido() {
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const client = createClient();
+      setSupabase(client);
+    }
+  }, []);
   
   // Form states
   const [producto, setProducto] = useState('');
