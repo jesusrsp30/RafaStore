@@ -1,17 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import DashboardStats from '@/components/DashboardStats';
 import FormularioPedido from '@/components/FormularioPedido';
 import ListaPedidos from '@/components/ListaPedidos';
 import VistaConsolidacion from '@/components/VistaConsolidacion';
 import ListaClientes from '@/components/ListaClientes';
+import { createClient } from '@/lib/supabase/client';
 
 type Tab = 'inicio' | 'pedidos' | 'clientes' | 'ajustes';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setSupabase(createClient());
+    }
+  }, []);
+
+  async function insertarDatosPrueba() {
+    if (!supabase) return;
+    setLoadingDemo(true);
+    try {
+      // Crear cliente de prueba
+      const { data: cliente, error: clienteError } = await supabase
+        .from('clientes')
+        .insert([{ nombre: 'María García', whatsapp: '5215512345678' }])
+        .select()
+        .single();
+      
+      if (clienteError) throw clienteError;
+
+      // Crear pedidos de prueba
+      const pedidos = [
+        {
+          cliente_id: cliente.id,
+          producto: 'Tenis Nike Air Max',
+          tienda: 'Amazon',
+          categoria: 'Calzado',
+          precio_cliente: 150,
+          precio_costo: 95,
+          costo_envio_estimado: 12,
+          anticipo: 75,
+          estado_pago: 'parcial',
+          estado_pedido: 'en_transito'
+        },
+        {
+          cliente_id: cliente.id,
+          producto: 'Blusa Shein Floral',
+          tienda: 'Shein',
+          categoria: 'Ropa Ligera',
+          precio_cliente: 45,
+          precio_costo: 22,
+          costo_envio_estimado: 5,
+          anticipo: 45,
+          estado_pago: 'pagado',
+          estado_pedido: 'pendiente'
+        }
+      ];
+
+      const { error: pedidosError } = await supabase.from('pedidos').insert(pedidos);
+      if (pedidosError) throw pedidosError;
+
+      alert('Datos de prueba insertados correctamente. Ve a Pedidos para verlos.');
+      setActiveTab('pedidos');
+    } catch (error: any) {
+      console.error('Error:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoadingDemo(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background pb-20">
@@ -71,6 +134,15 @@ export default function Home() {
                 <span className="text-muted-foreground">1.0.0</span>
               </div>
             </div>
+            
+            {/* Botón para insertar datos de prueba */}
+            <button
+              onClick={insertarDatosPrueba}
+              disabled={loadingDemo || !supabase}
+              className="w-full py-3 px-4 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loadingDemo ? 'Insertando...' : 'Insertar Datos de Prueba'}
+            </button>
           </section>
         )}
       </div>
