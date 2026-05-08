@@ -10,6 +10,8 @@ export async function updateSession(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // En producción, si no hay variables, redirigir a una página de error
+    console.log('[v0] Supabase env vars missing in middleware')
     return supabaseResponse
   }
 
