@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag, Plus, Trash2, CreditCard } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag, Plus, Trash2, CreditCard, Ban, RotateCcw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import RegistroPago from './RegistroPago';
 
@@ -21,6 +21,7 @@ export default function ListaPedidos() {
     precio_costo: ''
   });
   const [registrandoPago, setRegistrandoPago] = useState<{id: string, saldo: number} | null>(null);
+  const [cancelando, setCancelando] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -95,6 +96,46 @@ export default function ListaPedidos() {
   function startEditing(pedido: any) {
     setEditingId(pedido.id);
     setEnvioReal(pedido.costo_envio_real?.toString() || '');
+  }
+
+  async function cancelarPedido(pedidoId: string) {
+    if (!supabase) return;
+    setCancelando(pedidoId);
+    
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ estado_pedido: 'cancelado' })
+        .eq('id', pedidoId);
+      
+      if (error) throw error;
+      fetchPedidos();
+    } catch (error) {
+      console.error('Error cancelando pedido:', error);
+      alert('Error al cancelar el pedido');
+    } finally {
+      setCancelando(null);
+    }
+  }
+
+  async function reactivarPedido(pedidoId: string) {
+    if (!supabase) return;
+    setCancelando(pedidoId);
+    
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ estado_pedido: 'pendiente' })
+        .eq('id', pedidoId);
+      
+      if (error) throw error;
+      fetchPedidos();
+    } catch (error) {
+      console.error('Error reactivando pedido:', error);
+      alert('Error al reactivar el pedido');
+    } finally {
+      setCancelando(null);
+    }
   }
 
   async function agregarItem(pedidoId: string) {
@@ -231,7 +272,11 @@ export default function ListaPedidos() {
               : null;
             
             return (
-              <div key={pedido.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div key={pedido.id} className={`rounded-3xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden ${
+                pedido.estado_pedido === 'cancelado' 
+                  ? 'bg-slate-50 border-slate-200 opacity-70' 
+                  : 'bg-white border-slate-100'
+              }`}>
                 {/* Header - siempre visible */}
                 <div 
                   className="p-4 flex items-center gap-4 cursor-pointer"
@@ -262,6 +307,7 @@ export default function ListaPedidos() {
                         {pedido.estado_pago}
                       </span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                        pedido.estado_pedido === 'cancelado' ? 'bg-red-100 text-red-700' :
                         pedido.estado_pedido === 'entregado' ? 'bg-green-100 text-green-700' :
                         pedido.estado_pedido === 'en_transito' ? 'bg-blue-100 text-blue-700' :
                         'bg-amber-100 text-amber-700'
@@ -538,8 +584,8 @@ export default function ListaPedidos() {
                     
                     {/* Acciones */}
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200">
-                      <div className="flex items-center gap-2">
-                        {saldoPendiente > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {pedido.estado_pedido !== 'cancelado' && saldoPendiente > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setRegistrandoPago({ id: pedido.id, saldo: saldoPendiente }); }}
                             className="px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-bold flex items-center gap-1"
@@ -547,7 +593,7 @@ export default function ListaPedidos() {
                             <CreditCard className="h-3.5 w-3.5" /> Registrar Pago
                           </button>
                         )}
-                        {pedido.clientes?.whatsapp && (
+                        {pedido.estado_pedido !== 'cancelado' && pedido.clientes?.whatsapp && (
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); sendWhatsAppMessage(pedido, 'arrived'); }}
@@ -562,6 +608,42 @@ export default function ListaPedidos() {
                               <Send className="h-3.5 w-3.5" /> Listo
                             </button>
                           </>
+                        )}
+                      </div>
+                      
+                      {/* Botón Cancelar/Reactivar */}
+                      <div>
+                        {pedido.estado_pedido === 'cancelado' ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); reactivarPedido(pedido.id); }}
+                            disabled={cancelando === pedido.id}
+                            className="px-3 py-1.5 rounded-xl bg-green-100 text-green-700 hover:bg-green-200 transition-colors text-xs font-bold flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {cancelando === pedido.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Reactivar
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (confirm('¿Estás seguro de cancelar este pedido?')) {
+                                cancelarPedido(pedido.id);
+                              }
+                            }}
+                            disabled={cancelando === pedido.id}
+                            className="px-3 py-1.5 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition-colors text-xs font-bold flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {cancelando === pedido.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Ban className="h-3.5 w-3.5" />
+                            )}
+                            Cancelar Pedido
+                          </button>
                         )}
                       </div>
                     </div>
