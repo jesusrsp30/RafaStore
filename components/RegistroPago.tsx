@@ -11,7 +11,7 @@ interface RegistroPagoProps {
   onSuccess: () => void;
 }
 
-type Moneda = 'USD' | 'VES' | 'COP';
+type Moneda = 'USD' | 'USDT' | 'BS';
 
 const METODOS_PAGO = [
   { value: 'efectivo', label: 'Efectivo' },
@@ -34,8 +34,8 @@ export default function RegistroPago({ pedidoId, saldoPendiente, onClose, onSucc
   
   const [tasasGuardadas, setTasasGuardadas] = useState<{[key: string]: number}>({
     USD: 1,
-    VES: 36.50,
-    COP: 4200
+    USDT: 1,
+    BS: 36.50
   });
 
   useEffect(() => {
@@ -75,17 +75,17 @@ export default function RegistroPago({ pedidoId, saldoPendiente, onClose, onSucc
   }
 
   useEffect(() => {
-    if (moneda === 'USD') {
+    if (moneda === 'USD' || moneda === 'USDT') {
       setTasaCambio('1');
     } else {
       setTasaCambio(tasasGuardadas[moneda]?.toString() || '1');
     }
   }, [moneda, tasasGuardadas]);
 
-  // Calcular monto en USD
+  // Calcular monto en USD (USDT se considera 1:1 con USD)
   const montoNum = parseFloat(monto) || 0;
   const tasaNum = parseFloat(tasaCambio) || 1;
-  const montoUSD = moneda === 'USD' ? montoNum : montoNum / tasaNum;
+  const montoUSD = (moneda === 'USD' || moneda === 'USDT') ? montoNum : montoNum / tasaNum;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -201,13 +201,13 @@ export default function RegistroPago({ pedidoId, saldoPendiente, onClose, onSucc
                 className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none"
               >
                 <option value="USD">USD (Dólar)</option>
-                <option value="VES">VES (Bolívar)</option>
-                <option value="COP">COP (Peso Col.)</option>
+                <option value="USDT">USDT (Tether)</option>
+                <option value="BS">BS (Bolívares)</option>
               </select>
             </div>
           </div>
 
-          {moneda !== 'USD' && (
+          {moneda === 'BS' && (
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                 Tasa de cambio ({moneda}/USD)
