@@ -9,6 +9,7 @@ import VistaConsolidacion from '@/components/VistaConsolidacion';
 import ListaClientes from '@/components/ListaClientes';
 import HistorialPedidos from '@/components/HistorialPedidos';
 import Reportes from '@/components/Reportes';
+import GestorTasas from '@/components/GestorTasas';
 import { createClient } from '@/lib/supabase/client';
 
 type Tab = 'inicio' | 'pedidos' | 'clientes' | 'reportes' | 'ajustes';
