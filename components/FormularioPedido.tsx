@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UserPlus, Calculator, Wallet, Link as LinkIcon, Image as ImageIcon, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Plus, UserPlus, Calculator, Wallet, Link as LinkIcon, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Categoria, Tienda, estimarCostoEnvio, calcularGananciaNeta, calcularSaldoPendiente } from '@/lib/shipping';
 import { createClient } from '@/lib/supabase/client';
+import ImageUpload from './ImageUpload';
 
 export default function FormularioPedido() {
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
@@ -25,6 +26,7 @@ export default function FormularioPedido() {
   const [envio, setEnvio] = useState<number>(2.50);
   const [anticipo, setAnticipo] = useState<number>(0);
   const [link, setLink] = useState('');
+  const [imagenUrl, setImagenUrl] = useState<string | null>(null);
   
   // UI states
   const [loading, setLoading] = useState(false);
@@ -84,6 +86,7 @@ export default function FormularioPedido() {
           cliente_id: clienteId,
           producto: producto,
           link_producto: link,
+          imagen_url: imagenUrl,
           tienda: tienda,
           categoria: categoria,
           precio_cliente: precioCliente,
@@ -104,6 +107,7 @@ export default function FormularioPedido() {
       setPrecioReal(0);
       setAnticipo(0);
       setLink('');
+      setImagenUrl(null);
       
       setTimeout(() => setSuccess(false), 3000);
 
@@ -159,8 +163,12 @@ export default function FormularioPedido() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Imagen del Producto</label>
+            <ImageUpload value={imagenUrl || undefined} onChange={setImagenUrl} />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Link del Artículo</label>
             <div className="relative">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

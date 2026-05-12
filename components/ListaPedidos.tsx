@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag, Plus, Trash2 } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send, Edit3, X, DollarSign, ChevronDown, ChevronUp, Package, Calendar, Store, Tag, Plus, Trash2, CreditCard } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import RegistroPago from './RegistroPago';
 
 export default function ListaPedidos() {
   const [pedidos, setPedidos] = useState<any[]>([]);
@@ -19,6 +20,7 @@ export default function ListaPedidos() {
     precio_cliente: '',
     precio_costo: ''
   });
+  const [registrandoPago, setRegistrandoPago] = useState<{id: string, saldo: number} | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -200,6 +202,15 @@ export default function ListaPedidos() {
 
   return (
     <div className="space-y-4">
+      {registrandoPago && (
+        <RegistroPago
+          pedidoId={registrandoPago.id}
+          saldoPendiente={registrandoPago.saldo}
+          onClose={() => setRegistrandoPago(null)}
+          onSuccess={fetchPedidos}
+        />
+      )}
+      
       <div className="flex items-center justify-between px-2">
         <h3 className="text-lg font-bold text-slate-800">Control de Pedidos</h3>
         <button onClick={fetchPedidos} className="text-sm font-semibold text-primary">Actualizar</button>
@@ -528,19 +539,27 @@ export default function ListaPedidos() {
                     {/* Acciones */}
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200">
                       <div className="flex items-center gap-2">
+                        {saldoPendiente > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRegistrandoPago({ id: pedido.id, saldo: saldoPendiente }); }}
+                            className="px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-bold flex items-center gap-1"
+                          >
+                            <CreditCard className="h-3.5 w-3.5" /> Registrar Pago
+                          </button>
+                        )}
                         {pedido.clientes?.whatsapp && (
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); sendWhatsAppMessage(pedido, 'arrived'); }}
                               className="px-3 py-1.5 rounded-xl bg-green-100 text-green-700 hover:bg-green-200 transition-colors text-xs font-bold flex items-center gap-1"
                             >
-                              <MessageCircle className="h-3.5 w-3.5" /> Notificar llegada
+                              <MessageCircle className="h-3.5 w-3.5" /> Notificar
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); sendWhatsAppMessage(pedido, 'ready'); }}
                               className="px-3 py-1.5 rounded-xl bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors text-xs font-bold flex items-center gap-1"
                             >
-                              <Send className="h-3.5 w-3.5" /> Listo para entrega
+                              <Send className="h-3.5 w-3.5" /> Listo
                             </button>
                           </>
                         )}

@@ -7,12 +7,15 @@ import FormularioPedido from '@/components/FormularioPedido';
 import ListaPedidos from '@/components/ListaPedidos';
 import VistaConsolidacion from '@/components/VistaConsolidacion';
 import ListaClientes from '@/components/ListaClientes';
+import HistorialPedidos from '@/components/HistorialPedidos';
+import Reportes from '@/components/Reportes';
 import { createClient } from '@/lib/supabase/client';
 
-type Tab = 'inicio' | 'pedidos' | 'clientes' | 'ajustes';
+type Tab = 'inicio' | 'pedidos' | 'clientes' | 'reportes' | 'ajustes';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
+  const [vistaInicio, setVistaInicio] = useState<'registro' | 'historial'>('registro');
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
@@ -98,10 +101,28 @@ export default function Home() {
 
             <section className="space-y-4">
               <div className="flex gap-2">
-                <button className="flex-1 py-2 rounded-full bg-primary text-primary-foreground text-sm font-bold">Registro</button>
-                <button className="flex-1 py-2 rounded-full bg-muted text-muted-foreground text-sm font-bold">Historial</button>
+                <button 
+                  onClick={() => setVistaInicio('registro')}
+                  className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${
+                    vistaInicio === 'registro' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  Registro
+                </button>
+                <button 
+                  onClick={() => setVistaInicio('historial')}
+                  className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${
+                    vistaInicio === 'historial' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  Historial
+                </button>
               </div>
-              <FormularioPedido />
+              {vistaInicio === 'registro' ? <FormularioPedido /> : <HistorialPedidos />}
             </section>
 
             <section>
@@ -119,6 +140,12 @@ export default function Home() {
         {activeTab === 'clientes' && (
           <section>
             <ListaClientes />
+          </section>
+        )}
+
+        {activeTab === 'reportes' && (
+          <section>
+            <Reportes />
           </section>
         )}
 
@@ -180,6 +207,15 @@ export default function Home() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
           </div>
           <span className="text-[10px] font-bold">Clientes</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('reportes')}
+          className={`flex flex-col items-center gap-1 ${activeTab === 'reportes' ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <div className={`p-1 rounded-lg ${activeTab === 'reportes' ? 'bg-primary/10' : ''}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          </div>
+          <span className="text-[10px] font-bold">Reportes</span>
         </button>
         <button 
           onClick={() => setActiveTab('ajustes')}
