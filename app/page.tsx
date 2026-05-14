@@ -153,6 +153,10 @@ export default function Home() {
         {activeTab === 'ajustes' && (
           <section className="space-y-4">
             <h1 className="text-2xl font-black text-foreground">Ajustes</h1>
+            
+            {/* Gestor de Tasas de Cambio */}
+            <GestorTasas />
+            
             <div className="p-6 rounded-2xl bg-card border border-border space-y-4">
               <div className="flex items-center justify-between py-3 border-b border-border">
                 <span className="font-medium">Nombre del negocio</span>
